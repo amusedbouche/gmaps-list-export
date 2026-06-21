@@ -1,6 +1,5 @@
 let cachedPlaces = [];
 let cachedListName = 'maps-list';
-let cachedTabUrl = '';
 let userLat = null;
 let userLng = null;
 
@@ -13,7 +12,6 @@ const sortSelect    = document.getElementById('sort-select');
 const btnExtract    = document.getElementById('btn-extract');
 const btnCopy       = document.getElementById('btn-copy');
 const btnCsv        = document.getElementById('btn-csv');
-const btnMaps       = document.getElementById('btn-maps');
 
 btnExtract.addEventListener('click', extract);
 filterInput.addEventListener('input', render);
@@ -35,10 +33,6 @@ sortSelect.addEventListener('change', () => {
   }
 });
 
-btnMaps.addEventListener('click', () => {
-  if (cachedTabUrl) chrome.tabs.create({ url: cachedTabUrl });
-});
-
 async function extract() {
   statusEl.textContent = 'Extracting…';
   resultsEl.style.display = 'none';
@@ -49,7 +43,6 @@ async function extract() {
     showError('Open a Google Maps list first.');
     return;
   }
-  cachedTabUrl = tab.url;
 
   for (let attempt = 0; attempt < 5; attempt++) {
     if (attempt > 0) {
@@ -111,6 +104,24 @@ function dist(p) {
   return dlat * dlat + dlng * dlng;
 }
 
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function mapsUrl(p) {
+  if (p.lat !== null && p.lng !== null) {
+    return `https://www.google.com/maps?q=${p.lat},${p.lng}`;
+  } else {
+    const query = p.name + (p.address ? ' ' + p.address : '');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+}
+
 function render() {
   const visible = getVisible();
   const total = cachedPlaces.length;
@@ -118,14 +129,19 @@ function render() {
     ? `${total} place${total !== 1 ? 's' : ''} found`
     : `${visible.length} of ${total} places`;
 
-  previewEl.textContent = visible
+  previewEl.innerHTML = visible
     .map((p, i) => {
-      let line = `${i + 1}. ${p.name}`;
-      if (p.address) line += `\n   ${p.address}`;
-      if (p.note) line += `\n   📝 ${p.note}`;
-      return line;
+      const item = document.createElement('div');
+      item.className = 'place-item';
+      item.innerHTML = `
+        <div class="place-name">${i + 1}. ${escHtml(p.name)}</div>
+        ${p.address ? `<div class="place-addr">${escHtml(p.address)}</div>` : ''}
+        ${p.note ? `<div class="place-note">📝 ${escHtml(p.note)}</div>` : ''}
+        <a class="place-link" href="${mapsUrl(p)}" target="_blank">Open in Maps ↗</a>
+      `;
+      return item.outerHTML;
     })
-    .join('\n');
+    .join('');
 
   statusEl.textContent = 'Done!';
   resultsEl.style.display = 'block';
