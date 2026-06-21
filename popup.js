@@ -1,15 +1,43 @@
 let cachedPlaces = [];
 let cachedListName = 'maps-list';
+let cachedTabUrl = '';
+let userLat = null;
+let userLng = null;
 
-const statusEl = document.getElementById('status');
-const resultsEl = document.getElementById('results');
-const previewEl = document.getElementById('preview');
-const countEl = document.getElementById('count');
-const btnExtract = document.getElementById('btn-extract');
-const btnCopy = document.getElementById('btn-copy');
-const btnCsv = document.getElementById('btn-csv');
+const statusEl      = document.getElementById('status');
+const resultsEl     = document.getElementById('results');
+const previewEl     = document.getElementById('preview');
+const countEl       = document.getElementById('count');
+const filterInput   = document.getElementById('filter-input');
+const sortSelect    = document.getElementById('sort-select');
+const btnExtract    = document.getElementById('btn-extract');
+const btnCopy       = document.getElementById('btn-copy');
+const btnCsv        = document.getElementById('btn-csv');
+const btnMaps       = document.getElementById('btn-maps');
 
 btnExtract.addEventListener('click', extract);
+filterInput.addEventListener('input', render);
+sortSelect.addEventListener('change', () => {
+  if (sortSelect.value === 'distance' && userLat === null) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        render();
+      },
+      () => {
+        sortSelect.value = 'default';
+        statusEl.textContent = 'Location access denied — distance sort unavailable.';
+      }
+    );
+  } else {
+    render();
+  }
+});
+
+btnMaps.addEventListener('click', () => {
+  if (cachedTabUrl) chrome.tabs.create({ url: cachedTabUrl });
+});
 
 async function extract() {
   statusEl.textContent = 'Extracting…';
@@ -21,6 +49,7 @@ async function extract() {
     showError('Open a Google Maps list first.');
     return;
   }
+  cachedTabUrl = tab.url;
 
   for (let attempt = 0; attempt < 5; attempt++) {
     if (attempt > 0) {
@@ -41,6 +70,8 @@ async function extract() {
       if (result?.ok && result.places.length > 0) {
         cachedPlaces = result.places;
         cachedListName = result.listName || 'maps-list';
+        filterInput.value = '';
+        sortSelect.value = 'default';
         render();
         return;
       }
@@ -53,9 +84,41 @@ async function extract() {
   showError('No places found. Make sure the list is open and fully loaded.');
 }
 
+function getVisible() {
+  const q = filterInput.value.trim().toLowerCase();
+  let places = q
+    ? cachedPlaces.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.address.toLowerCase().includes(q) ||
+        (p.note && p.note.toLowerCase().includes(q))
+      )
+    : [...cachedPlaces];
+
+  const sort = sortSelect.value;
+  if (sort === 'name-asc') {
+    places.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sort === 'name-desc') {
+    places.sort((a, b) => b.name.localeCompare(a.name));
+  } else if (sort === 'distance' && userLat !== null) {
+    places.sort((a, b) => dist(a) - dist(b));
+  }
+  return places;
+}
+
+function dist(p) {
+  if (p.lat === null || p.lng === null) return Infinity;
+  const dlat = p.lat - userLat, dlng = p.lng - userLng;
+  return dlat * dlat + dlng * dlng;
+}
+
 function render() {
-  countEl.textContent = `${cachedPlaces.length} place${cachedPlaces.length !== 1 ? 's' : ''} found`;
-  previewEl.textContent = cachedPlaces
+  const visible = getVisible();
+  const total = cachedPlaces.length;
+  countEl.textContent = visible.length === total
+    ? `${total} place${total !== 1 ? 's' : ''} found`
+    : `${visible.length} of ${total} places`;
+
+  previewEl.textContent = visible
     .map((p, i) => {
       let line = `${i + 1}. ${p.name}`;
       if (p.address) line += `\n   ${p.address}`;
@@ -63,13 +126,14 @@ function render() {
       return line;
     })
     .join('\n');
+
   statusEl.textContent = 'Done!';
   resultsEl.style.display = 'block';
   btnExtract.disabled = false;
 }
 
 btnCopy.addEventListener('click', () => {
-  const text = cachedPlaces
+  const text = getVisible()
     .map((p, i) => {
       let line = `${i + 1}. ${p.name}`;
       if (p.address) line += ` — ${p.address}`;
@@ -89,7 +153,7 @@ btnCsv.addEventListener('click', () => {
     const s = String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const rows = cachedPlaces.map(p =>
+  const rows = getVisible().map(p =>
     [p.name, p.note || '', p.address || '', p.lat ?? '', p.lng ?? ''].map(esc).join(',')
   );
   const csv = '﻿' + 'Name,Note,Address,Latitude,Longitude\n' + rows.join('\n');
