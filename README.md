@@ -9,6 +9,18 @@ A Chrome extension that extracts all places from a Google Maps shared list and e
 - Copy to clipboard as a plain text list
 - Download as CSV (named after the list, e.g. `food.csv`)
 - Works on lists of any size — no scrolling required
+- Filter by name, address, or notes
+- Sort by name (A–Z, Z–A) or distance from current location
+- Open any place directly in Google Maps
+
+## Project structure
+
+```
+src/         extension source (popup, extractor)
+icons/       toolbar icons
+scripts/     git hooks and dev scripts
+manifest.json  Chrome extension manifest
+```
 
 ## Installation
 

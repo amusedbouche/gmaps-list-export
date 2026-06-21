@@ -1,0 +1,9 @@
+#!/bin/sh
+# Auto-stage doc files if they have unstaged changes
+for f in README.md TODO.md DONE.md; do
+  if ! git diff --quiet -- "$f" 2>/dev/null; then
+    git add "$f"
+    echo "[pre-commit] staged $f"
+  fi
+done
+exit 0

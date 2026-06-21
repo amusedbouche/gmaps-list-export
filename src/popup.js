@@ -53,7 +53,7 @@ async function extract() {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         world: 'MAIN',
-        files: ['extractor.js']
+        files: ['src/extractor.js']
       });
       const [{ result }] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
