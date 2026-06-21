@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Google Maps List Extractor",
+  "version": "1.0.0",
+  "description": "Extract all places from a Google Maps shared list as text or CSV.",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": ["https://www.google.com/maps/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  }
+}
