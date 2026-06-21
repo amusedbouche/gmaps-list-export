@@ -16,6 +16,12 @@
 - Update README.md if the user-facing behavior changes
 - The pre-commit hook auto-stages README.md, TODO.md, and DONE.md if they have unsaved changes
 
+## Allowed tools (.claude/settings.json)
+- `Bash` — git, mkdir, chmod, ls
+- `Read`, `Write`, `Edit` — file operations
+- `Agent` — Haiku sub-agents for grunt work
+- `mcp__Claude_in_Chrome__*` — inspect live page data (list_connected_browsers, tabs_context_mcp, javascript_tool)
+
 ## Extension notes
 - `world: 'MAIN'` is required in executeScript — content scripts cannot access window.APP_INITIALIZATION_STATE
 - Find the LARGEST XSSI string (starts with `)]}'`) in the state tree — a shorter one appears first
