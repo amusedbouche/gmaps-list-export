@@ -3,8 +3,8 @@
   "name": "Google Maps List Extractor",
   "version": "1.0.0",
   "description": "Extract all places from a Google Maps shared list as text or CSV.",
-  "permissions": ["scripting", "activeTab"],
-  "host_permissions": ["https://www.google.com/maps/*"],
+  "permissions": ["scripting", "activeTab", "storage"],
+  "host_permissions": ["https://www.google.com/maps/*", "https://nominatim.openstreetmap.org/*"],
   "action": {
     "default_popup": "src/popup.html",
     "default_icon": {

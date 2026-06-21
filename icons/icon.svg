@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- green pin body -->
+  <path d="M64 8 C42 8 24 26 24 48 C24 74 64 120 64 120 C64 120 104 74 104 48 C104 26 86 8 64 8Z" fill="#34a853"/>
+  <!-- white circle inside pin -->
+  <circle cx="64" cy="48" r="18" fill="white"/>
+  <!-- download arrow inside circle -->
+  <line x1="64" y1="38" x2="64" y2="55" stroke="#34a853" stroke-width="5" stroke-linecap="round"/>
+  <polyline points="55,50 64,59 73,50" fill="none" stroke="#34a853" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -2,26 +2,48 @@ let cachedPlaces = [];
 let cachedListName = 'maps-list';
 let userLat = null;
 let userLng = null;
+let zipCenter = null;
 
 const statusEl      = document.getElementById('status');
 const resultsEl     = document.getElementById('results');
 const previewEl     = document.getElementById('preview');
 const countEl       = document.getElementById('count');
 const filterInput   = document.getElementById('filter-input');
+const zipInput      = document.getElementById('zip-input');
+const radiusSelect  = document.getElementById('radius-select');
+const btnZip        = document.getElementById('btn-zip');
+const btnZipClear   = document.getElementById('btn-zip-clear');
 const sortSelect    = document.getElementById('sort-select');
 const btnExtract    = document.getElementById('btn-extract');
 const btnCopy       = document.getElementById('btn-copy');
 const btnCsv        = document.getElementById('btn-csv');
 
 btnExtract.addEventListener('click', extract);
-filterInput.addEventListener('input', render);
+filterInput.addEventListener('input', () => { render(); saveSession(); });
+btnZip.addEventListener('click', applyZipFilter);
+btnZipClear.addEventListener('click', () => {
+  zipCenter = null;
+  zipInput.value = '';
+  btnZip.textContent = 'Filter by area';
+  btnZip.classList.remove('active');
+  btnZipClear.style.display = 'none';
+  render();
+  saveSession();
+});
+radiusSelect.addEventListener('change', () => {
+  if (zipCenter) {
+    btnZip.textContent = `Within ${radiusSelect.value} mi of ${zipInput.value.trim()}`;
+    render();
+    saveSession();
+  }
+});
 sortSelect.addEventListener('change', () => {
   if (sortSelect.value === 'distance' && userLat === null) {
     navigator.geolocation.getCurrentPosition(
       pos => {
         userLat = pos.coords.latitude;
         userLng = pos.coords.longitude;
-        render();
+        render(); saveSession();
       },
       () => {
         sortSelect.value = 'default';
@@ -29,7 +51,7 @@ sortSelect.addEventListener('change', () => {
       }
     );
   } else {
-    render();
+    render(); saveSession();
   }
 });
 
@@ -64,7 +86,13 @@ async function extract() {
         cachedPlaces = result.places;
         cachedListName = result.listName || 'maps-list';
         filterInput.value = '';
+        zipInput.value = '';
+        zipCenter = null;
+        btnZip.textContent = 'Filter by area';
+        btnZip.classList.remove('active');
+        btnZipClear.style.display = 'none';
         sortSelect.value = 'default';
+        saveSession(tab.id);
         render();
         return;
       }
@@ -77,15 +105,73 @@ async function extract() {
   showError('No places found. Make sure the list is open and fully loaded.');
 }
 
+async function applyZipFilter() {
+  const zip = zipInput.value.trim();
+  if (!zip) {
+    zipCenter = null;
+    btnZip.textContent = 'Filter by area';
+    btnZip.classList.remove('active');
+    btnZipClear.style.display = 'none';
+    render();
+    return;
+  }
+  btnZip.textContent = 'Looking up…';
+  btnZip.disabled = true;
+  try {
+    const isZip = /^\d{5}$/.test(zip);
+    const params = isZip
+      ? `postalcode=${encodeURIComponent(zip)}&country=US`
+      : `city=${encodeURIComponent(zip)}&country=US`;
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const data = await res.json();
+    if (!data.length) {
+      statusEl.textContent = `ZIP ${zip} not found.`;
+      zipCenter = null;
+      btnZipClear.style.display = 'none';
+    } else {
+      zipCenter = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      btnZip.classList.add('active');
+      btnZip.textContent = `Within ${radiusSelect.value} mi of ${zip}`;
+      btnZipClear.style.display = '';
+      saveSession();
+    }
+  } catch {
+    statusEl.textContent = 'Could not geocode ZIP — check connection.';
+    zipCenter = null;
+    btnZipClear.style.display = 'none';
+  }
+  btnZip.disabled = false;
+  render();
+}
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const R = 3958.8;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function getVisible() {
   const q = filterInput.value.trim().toLowerCase();
-  let places = q
-    ? cachedPlaces.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.address.toLowerCase().includes(q) ||
-        (p.note && p.note.toLowerCase().includes(q))
-      )
-    : [...cachedPlaces];
+  const radius = parseFloat(radiusSelect.value);
+  let places = cachedPlaces.filter(p => {
+    if (q && !(
+      p.name.toLowerCase().includes(q) ||
+      p.address.toLowerCase().includes(q) ||
+      (p.note && p.note.toLowerCase().includes(q))
+    )) return false;
+    if (zipCenter) {
+      if (p.lat === null || p.lng === null) return false;
+      if (haversineMiles(zipCenter.lat, zipCenter.lng, p.lat, p.lng) > radius) return false;
+    }
+    return true;
+  });
 
   const sort = sortSelect.value;
   if (sort === 'name-asc') {
@@ -114,12 +200,11 @@ function escHtml(s) {
 }
 
 function mapsUrl(p) {
+  const query = p.name + (p.address ? ' ' + p.address : '');
   if (p.lat !== null && p.lng !== null) {
-    return `https://www.google.com/maps?q=${p.lat},${p.lng}`;
-  } else {
-    const query = p.name + (p.address ? ' ' + p.address : '');
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}&ll=${p.lat},${p.lng}`;
   }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 function render() {
@@ -187,3 +272,46 @@ function showError(msg) {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let activeTabId = null;
+
+function saveSession(tabId) {
+  const id = tabId ?? activeTabId;
+  if (!id) return;
+  chrome.storage.session.set({
+    [String(id)]: {
+      places: cachedPlaces,
+      listName: cachedListName,
+      filterQ: filterInput.value,
+      sortVal: sortSelect.value,
+      zipVal: zipInput.value,
+      radiusVal: radiusSelect.value,
+      zipCenter,
+    }
+  });
+}
+
+(async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
+  activeTabId = tab.id;
+  const stored = await chrome.storage.session.get(String(tab.id));
+  const c = stored[String(tab.id)];
+  if (!c?.places?.length) return;
+
+  cachedPlaces = c.places;
+  cachedListName = c.listName || 'maps-list';
+  filterInput.value = c.filterQ || '';
+  sortSelect.value = c.sortVal || 'default';
+  zipInput.value = c.zipVal || '';
+  radiusSelect.value = c.radiusVal || '5';
+  zipCenter = c.zipCenter || null;
+
+  if (zipCenter) {
+    btnZip.classList.add('active');
+    btnZip.textContent = `Within ${radiusSelect.value} mi of ${zipInput.value}`;
+    btnZipClear.style.display = '';
+  }
+
+  render();
+})();

@@ -62,6 +62,45 @@
       color: #202124;
     }
     #filter-input:focus { border-color: #1a73e8; }
+    #zip-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    #zip-input {
+      width: 72px;
+      padding: 6px 9px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      color: #202124;
+    }
+    #zip-input:focus { border-color: #1a73e8; }
+    #radius-select {
+      padding: 6px 6px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #202124;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+    }
+    #btn-zip {
+      flex: 1;
+      padding: 6px 10px;
+      background: #f1f3f4;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: #202124;
+    }
+    #btn-zip:hover { background: #e8eaed; }
+    #btn-zip.active { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
     #sort-select {
       padding: 6px 6px;
       border: 1px solid #dadce0;
@@ -140,8 +179,19 @@
   <div id="status">Open a Google Maps list, then click Extract.</div>
   <button id="btn-extract">Extract Places</button>
   <div id="results">
+    <div id="zip-row">
+      <input id="zip-input" type="text" placeholder="ZIP or city" maxlength="20" />
+      <select id="radius-select">
+        <option value="1">1 mi</option>
+        <option value="5" selected>5 mi</option>
+        <option value="10">10 mi</option>
+        <option value="25">25 mi</option>
+      </select>
+      <button id="btn-zip">Filter by area</button>
+      <button id="btn-zip-clear" title="Clear area filter" style="display:none;padding:2px 6px!important;background:#f1f3f4;border:1px solid #dadce0;border-radius:6px;font-size:11px;cursor:pointer;color:#5f6368;flex:none;">✕</button>
+    </div>
     <div id="controls">
-      <input id="filter-input" type="text" placeholder="Filter places…" />
+      <input id="filter-input" type="text" placeholder="Search places…" />
       <select id="sort-select">
         <option value="default">Original order</option>
         <option value="name-asc">Name A–Z</option>
