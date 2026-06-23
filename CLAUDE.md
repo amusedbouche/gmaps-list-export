@@ -26,4 +26,10 @@
 - `world: 'MAIN'` is required in executeScript — content scripts cannot access window.APP_INITIALIZATION_STATE
 - Find the LARGEST XSSI string (starts with `)]}'`) in the state tree — a shorter one appears first
 - Direct data path: parsed[0][8] = array of all place entries
+- Two URL formats:
+  - `/maps/placelists/list/<id>` — data embedded in APP_INITIALIZATION_STATE (largest XSSI string)
+  - `/@lat,lng,zoom/data=...!2s<id>!3e3` (opened from "Saved") — data NOT in page; fetched lazily.
+    Extractor falls back to `/maps/preview/entitylist/getlist?...&pb=!1m4!1s<id>!2e1!3m1!1e1!2e2!3e2!4i1000`
+    (same-origin fetch carries cookies; session token in the original request is NOT required)
+- List ID regex: `/placelists/list/<id>` or `!2s<id>` in the data= segment
 - Ratings and categories are NOT in the list payload — they require Google Places API
